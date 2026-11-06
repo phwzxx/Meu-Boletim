@@ -16,57 +16,83 @@
   </header>
 
   <main class="conteudo-principal">
-    <!-- Área Superior: Cards de Resumo -->
-    <section class="container-cards">
-      <div class="card">
-        <h3>Média Geral</h3>
-        <p id="card-media">—</p>
-      </div>
 
-      <div class="card">
-        <h3>Total de Faltas</h3>
-        <p id="card-faltas">—</p>
+    <!-- Tela / Área de Acesso por PIN -->
+    <section id="area-login" class="container-login">
+      <h2>Acesso ao Boletim</h2>
+      <p>Turma: <strong>9B</strong> | Chamada: <strong>29</strong></p>
+      <div class="formulario-login">
+        <label for="campo-pin">Digite seu PIN:</label>
+        <input type="password" id="campo-pin" maxlength="10" placeholder="PIN de acesso">
+        <button id="btn-entrar" type="button">Entrar</button>
       </div>
-
-      <div class="card">
-        <h3>Bom Desempenho</h3>
-        <p id="card-bom-desempenho">—</p>
-      </div>
-
-      <div class="card">
-        <h3>Precisam de Atenção</h3>
-        <p id="card-atencao">—</p>
-      </div>
-
-      <div class="card">
-        <h3>Frequência</h3>
-        <p id="card-frequencia">92%</p>
-        <small>Frequência adequada</small>
-      </div>
+      <p id="mensagem-status" class="mensagem-status"></p>
     </section>
 
-    <!-- Tabela Responsiva de Disciplinas -->
-    <section class="container-tabela">
-      <h2>Desempenho por Disciplina</h2>
-      <div class="tabela-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Disciplina</th>
-              <th>1º Tri</th>
-              <th>2º Tri</th>
-              <th>3º Tri</th>
-              <th>Média</th>
-              <th>Faltas</th>
-              <th>Situação</th>
-            </tr>
-          </thead>
-          <tbody id="corpo-tabela">
-            <!-- As 15 linhas serão inseridas automaticamente via JavaScript -->
-          </tbody>
-        </table>
-      </div>
-    </section>
+    <!-- Conteúdo do Boletim (Escondido até autenticar) -->
+    <div id="conteudo-boletim" style="display: none;">
+
+      <!-- Barra de Ações do Aluno -->
+      <section class="container-acoes">
+        <button id="btn-alterar-dados" type="button">Alterar dados</button>
+        <button id="btn-salvar-dados" type="button" style="display: none;">Salvar alterações</button>
+        <button id="btn-cancelar-edicao" type="button" style="display: none;">Cancelar</button>
+      </section>
+
+      <!-- Área Superior: Cards de Resumo -->
+      <section class="container-cards">
+        <div class="card">
+          <h3>Média Geral</h3>
+          <p id="card-media">—</p>
+        </div>
+
+        <div class="card">
+          <h3>Total de Faltas</h3>
+          <p id="card-faltas">—</p>
+        </div>
+
+        <div class="card">
+          <h3>Bom Desempenho</h3>
+          <p id="card-bom-desempenho">—</p>
+        </div>
+
+        <div class="card">
+          <h3>Precisam de Atenção</h3>
+          <p id="card-atencao">—</p>
+        </div>
+
+        <div class="card">
+          <h3>Frequência</h3>
+          <p id="card-frequencia">92%</p>
+          <small>Frequência adequada</small>
+        </div>
+      </section>
+
+      <!-- Tabela Responsiva de Disciplinas -->
+      <section class="container-tabela">
+        <h2>Desempenho por Disciplina</h2>
+        <div class="tabela-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Disciplina</th>
+                <th>1º Tri</th>
+                <th>2º Tri</th>
+                <th>3º Tri</th>
+                <th>Média</th>
+                <th>Faltas</th>
+                <th>Situação</th>
+              </tr>
+            </thead>
+            <tbody id="corpo-tabela">
+              <!-- As linhas serão inseridas via JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+
   </main>
 
   <script src="script.js"></script>

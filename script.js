@@ -1,4 +1,16 @@
-const dadosDisciplinas = [
+// Configuração fixa do aluno
+const CONFIG_ALUNO = {
+  turma: "9B",
+  numeroChamada: 29,
+  apiUrl: "https://boletim-api.profbt.com.br"
+};
+
+// Variáveis de sessão (mantidas apenas em memória)
+let pinSessao = "";
+let modoEdicao = false;
+
+// Dados fictícios locais (usados como fallback caso a API não retorne dados)
+const dadosDisciplinasLocais = [
   { disciplina: "Língua Portuguesa", tri1: 78, tri2: "8,2", tri3: 8.6, faltas: [2, 2, 1] },
   { disciplina: "Matemática", tri1: 55, tri2: "5,4", tri3: null, faltas: [3, 2, 2] },
   { disciplina: "Ciências", tri1: 84, tri2: 7.9, tri3: "8,3", faltas: [1, 1, 1] },
@@ -16,16 +28,18 @@ const dadosDisciplinas = [
   { disciplina: "Práticas Experimentais", tri1: 64, tri2: "6,6", tri3: 7.0, faltas: [1, 1, 1] }
 ];
 
-// Frequência fictícia/demonstrativa para esta etapa do projeto (será calculada dinamicamente no futuro)
+// Estado atual das disciplinas exibidas na tela
+let disciplinasAtuais = [];
+
+// Frequência fictícia/demonstrativa
 const FREQUENCIA_DEMONSTRATIVA = "92%";
 
-// Função para normalizar qualquer formato de nota na escala de 0 a 10
+// Função para normalizar dados antigos (0-100 para 0-10, vírgula para ponto, etc.)
 function normalizarNota(valor) {
   if (valor === null || valor === undefined || valor === "") {
     return null;
   }
 
-  // Converte vírgula para ponto caso seja texto
   if (typeof valor === "string") {
     valor = valor.replace(",", ".");
   }
@@ -36,12 +50,10 @@ function normalizarNota(valor) {
     return null;
   }
 
-  // Ajusta notas maiores que 10 e menores ou iguais a 100 (ex: 82 vira 8.2)
   if (numero > 10 && numero <= 100) {
     numero = numero / 10;
   }
 
-  // Verifica se a nota está dentro do intervalo válido de 0 a 10
   if (numero >= 0 && numero <= 10) {
     return numero;
   }
@@ -49,7 +61,7 @@ function normalizarNota(valor) {
   return null;
 }
 
-// Função para formatar a nota para exibição no HTML (ex: 8.5 vira "8,5")
+// Formatação de notas para exibição
 function formatarNotaExibicao(nota) {
   if (nota === null) {
     return "—";
@@ -57,7 +69,14 @@ function formatarNotaExibicao(nota) {
   return nota.toFixed(1).replace(".", ",");
 }
 
-// Função para calcular a média de uma lista de notas disponíveis
+// Formatação de notas para valor de campo input durante edição
+function formatarNotaInput(valor) {
+  const n = normalizarNota(valor);
+  if (n === null) return "";
+  return n.toString().replace(".", ",");
+}
+
+// Função para calcular média das notas disponíveis
 function calcularMedia(notas) {
   const notasValidas = notas.filter(n => n !== null);
   if (notasValidas.length === 0) return null;
@@ -66,12 +85,21 @@ function calcularMedia(notas) {
   return soma / notasValidas.length;
 }
 
-// Função para somar as faltas dos trimestres
+// Função para somar faltas dos trimestres
 function somarFaltas(faltasArray) {
-  return faltasArray.reduce((acc, curr) => acc + curr, 0);
+  if (!Array.isArray(faltasArray)) return 0;
+  return faltasArray.reduce((acc, curr) => acc + (parseInt(curr, 10) || 0), 0);
 }
 
-// Função principal que constrói a tabela e atualiza os cards
+// Exibe mensagens de aviso ou status na interface
+function exibirMensagem(texto, tipo = "erro") {
+  const msgEl = document.getElementById("mensagem-status");
+  if (!msgEl) return;
+  msgEl.textContent = texto;
+  msgEl.className = "mensagem-status " + (tipo === "sucesso" ? "mensagem-sucesso" : "mensagem-erro");
+}
+
+// Renderiza os cards e a tabela garantindo limpeza prévia
 function renderizarBoletim() {
   const corpoTabela = document.getElementById("corpo-tabela");
   corpoTabela.innerHTML = "";
@@ -82,17 +110,17 @@ function renderizarBoletim() {
   let contadorBomDesempenho = 0;
   let contadorAtencao = 0;
 
-  dadosDisciplinas.forEach(item => {
-    // Normaliza as notas dos trimestres
+  disciplinasAtuais.forEach((item, index) => {
     const n1 = normalizarNota(item.tri1);
     const n2 = normalizarNota(item.tri2);
     const n3 = normalizarNota(item.tri3);
 
     const media = calcularMedia([n1, n2, n3]);
-    const totalFaltasDisciplina = somarFaltas(item.faltas);
+
+    const faltasLista = Array.isArray(item.faltas) ? item.faltas : [0, 0, 0];
+    const totalFaltasDisciplina = somarFaltas(faltasLista);
     totalFaltasGeral += totalFaltasDisciplina;
 
-    // Define a situação da disciplina
     let situacaoTexto = "Nota ainda não disponível";
     let classeSituacao = "situacao-indisponivel";
 
@@ -111,30 +139,48 @@ function renderizarBoletim() {
       }
     }
 
-    // Cria a linha da tabela via DOM
     const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td><strong>${item.disciplina}</strong></td>
-      <td>${formatarNotaExibicao(n1)}</td>
-      <td>${formatarNotaExibicao(n2)}</td>
-      <td>${formatarNotaExibicao(n3)}</td>
-      <td><strong>${formatarNotaExibicao(media)}</strong></td>
-      <td>${totalFaltasDisciplina}</td>
-      <td class="${classeSituacao}">${situacaoTexto}</td>
-    `;
 
-    corpoTabela.appendChild(tr);
-  });
+    // Coluna 1: Nome da disciplina (seguro contra XSS via textContent)
+    const tdNome = document.createElement("td");
+    const strongNome = document.createElement("strong");
+    strongNome.textContent = item.disciplina;
+    tdNome.appendChild(strongNome);
+    tr.appendChild(tdNome);
 
-  // Atualiza os Cards de Resumo no DOM
-  const mediaGeralGlobal = quantDisciplinasComMedia > 0 ? (somaMediasGerais / quantDisciplinasComMedia) : null;
-  
-  document.getElementById("card-media").innerText = formatarNotaExibicao(mediaGeralGlobal);
-  document.getElementById("card-faltas").innerText = totalFaltasGeral;
-  document.getElementById("card-bom-desempenho").innerText = contadorBomDesempenho;
-  document.getElementById("card-atencao").innerText = contadorAtencao;
-  document.getElementById("card-frequencia").innerText = FREQUENCIA_DEMONSTRATIVA;
-}
+    if (!modoEdicao) {
+      // Modo Leitura
+      const td1 = document.createElement("td");
+      td1.textContent = formatarNotaExibicao(n1);
+      tr.appendChild(td1);
 
-// Executa a função assim que a página carrega
-document.addEventListener("DOMContentLoaded", renderizarBoletim);
+      const td2 = document.createElement("td");
+      td2.textContent = formatarNotaExibicao(n2);
+      tr.appendChild(td2);
+
+      const td3 = document.createElement("td");
+      td3.textContent = formatarNotaExibicao(n3);
+      tr.appendChild(td3);
+
+      const tdMedia = document.createElement("td");
+      const strongMedia = document.createElement("strong");
+      strongMedia.textContent = formatarNotaExibicao(media);
+      tdMedia.appendChild(strongMedia);
+      tr.appendChild(tdMedia);
+
+      const tdFaltas = document.createElement("td");
+      tdFaltas.textContent = totalFaltasDisciplina;
+      tr.appendChild(tdFaltas);
+
+      const tdSituacao = document.createElement("td");
+      tdSituacao.className = classeSituacao;
+      tdSituacao.textContent = situacaoTexto;
+      tr.appendChild(tdSituacao);
+    } else {
+      // Modo Edição de dados
+      const f1 = faltasLista[0] !== undefined ? faltasLista[0] : 0;
+      const f2 = faltasLista[1] !== undefined ? faltasLista[1] : 0;
+      const f3 = faltasLista[2] !== undefined ? faltasLista[2] : 0;
+
+      tr.innerHTML += `
+        <td><input type="text" class="input-edicao" id="edit-tri1-${index}" value="${formatarNotaInput(n1)}"></td>
